@@ -1,18 +1,25 @@
 package leaf
 
 import (
+	"os"
+	"os/signal"
+
 	"github.com/name5566/leaf/cluster"
 	"github.com/name5566/leaf/conf"
 	"github.com/name5566/leaf/console"
 	"github.com/name5566/leaf/log"
 	"github.com/name5566/leaf/module"
-	"os"
-	"os/signal"
 )
 
 var (
-	OnDestroy func()
+	OnDestroy  func()
+	serverName string
 )
+
+func RunWithName(serName string, mods ...module.Module) {
+	serverName = serName
+	Run(mods[:]...)
+}
 
 func Run(mods ...module.Module) {
 	// logger
@@ -25,7 +32,7 @@ func Run(mods ...module.Module) {
 		defer logger.Close()
 	}
 
-	log.Release("Leaf %v starting up", version)
+	log.Release("Leaf %v starting up [[[---%s---]]]", version, serverName)
 
 	// module
 	for i := 0; i < len(mods); i++ {

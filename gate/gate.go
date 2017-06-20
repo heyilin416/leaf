@@ -1,13 +1,16 @@
 package gate
 
 import (
-	"github.com/name5566/leaf/chanrpc"
-	"github.com/name5566/leaf/log"
-	"github.com/name5566/leaf/network"
 	"net"
 	"reflect"
 	"time"
+
+	"strings"
+
+	"github.com/name5566/leaf/chanrpc"
+	"github.com/name5566/leaf/log"
 	"github.com/name5566/leaf/module"
+	"github.com/name5566/leaf/network"
 )
 
 type Gate struct {
@@ -33,8 +36,8 @@ type Gate struct {
 	TimerDispatcherLen int
 	AsynCallLen        int
 	ChanRPCLen         int
-	OnAgentInit 	   func(Agent)
-	OnAgentDestroy 	   func(Agent)
+	OnAgentInit        func(Agent)
+	OnAgentDestroy     func(Agent)
 }
 
 func (gate *Gate) Run(closeSig chan bool) {
@@ -52,6 +55,7 @@ func (gate *Gate) Run(closeSig chan bool) {
 			a.skeleton = skeleton
 			a.chanRPC = skeleton.ChanRPCServer
 		}
+
 		if gate.AgentChanRPC != nil {
 			gate.AgentChanRPC.Go("NewAgent", a)
 		}
@@ -122,7 +126,7 @@ func (a *agent) Run() {
 		closeSig <- true
 	}()
 
-	handleMsgData := func(args []interface{}) (error) {
+	handleMsgData := func(args []interface{}) error {
 		if a.gate.Processor != nil {
 			data := args[0].([]byte)
 			msg, err := a.gate.Processor.Unmarshal(data)
@@ -163,7 +167,9 @@ func (a *agent) Run() {
 	for {
 		data, err := a.conn.ReadMsg()
 		if err != nil {
-			log.Debug("read message: %v", err)
+			if err.Error() != "EOF" && strings.ContainsAny(err.Error(), "use of closed network connection") == false {
+				log.Debug("read message: %s", err.Error())
+			}
 			break
 		}
 

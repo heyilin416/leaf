@@ -1,21 +1,23 @@
 package cluster
 
 import (
-	"math"
-	"time"
-	"reflect"
-	"net"
 	"fmt"
-	"github.com/name5566/leaf/log"
-	"github.com/name5566/leaf/conf"
-	"github.com/name5566/leaf/network"
-	"github.com/name5566/leaf/chanrpc"
-	lgob "github.com/name5566/leaf/network/gob"
+	"math"
+	"net"
+	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"github.com/name5566/leaf/chanrpc"
+	"github.com/name5566/leaf/conf"
+	"github.com/name5566/leaf/log"
+	"github.com/name5566/leaf/network"
+	lgob "github.com/name5566/leaf/network/gob"
 )
 
-const (
+var (
 	NeedWaitRequestTimes = 5
 )
 
@@ -60,7 +62,7 @@ func Init() {
 func run() {
 	defer wg.Done()
 
-	msg := &S2S_HeartBeat{}
+	msg := &S2S_HeartBeat{ServerName: conf.ServerName}
 	timer := time.NewTicker(time.Duration(conf.HeartBeatInterval) * time.Second)
 
 	for {
@@ -70,7 +72,8 @@ func run() {
 		case <-timer.C:
 			agentsMutex.RLock()
 			for _, agent := range agents {
-				if atomic.AddInt32(&agent.heartBeatWaitTimes, 1) >= 2 {
+				v := agent.heartBeatWaitTimes[conf.ServerName]
+				if atomic.AddInt32(&v, 1) >= 2 {
 					agent.conn.Destroy()
 				} else {
 					agent.WriteMsg(msg)
@@ -123,8 +126,9 @@ func addAgent(serverName string, agent *Agent) {
 	_removeAgent(serverName)
 
 	agent.ServerName = serverName
+	agent.heartBeatWaitTimes[conf.ServerName] = 0
 	agents[agent.ServerName] = agent
-	log.Release("%v server is online", serverName)
+	log.Release("%s server is online >>>[%s]", serverName, conf.ServerName)
 
 	if AgentChanRPC != nil {
 		AgentChanRPC.Go("NewServerAgent", serverName, agent)
@@ -136,7 +140,7 @@ func _removeAgent(serverName string) {
 	if ok {
 		delete(agents, serverName)
 		agent.Destroy()
-		log.Release("%v server is offline", serverName)
+		log.Release("%s server is offline >>>[%s]", serverName, conf.ServerName)
 
 		if AgentChanRPC != nil {
 			AgentChanRPC.Go("CloseServerAgent", serverName, agent)
@@ -189,7 +193,7 @@ type Agent struct {
 	ServerName         string
 	conn               *network.TCPConn
 	userData           interface{}
-	heartBeatWaitTimes int32
+	heartBeatWaitTimes map[string]int32
 
 	encMutex sync.Mutex
 	encoder  *lgob.Encoder
@@ -204,6 +208,7 @@ func newAgent(conn *network.TCPConn) network.Agent {
 	a := new(Agent)
 	a.conn = conn
 	a.requestMap = make(map[uint32]*RequestInfo)
+	a.heartBeatWaitTimes = make(map[string]int32)
 
 	a.encoder = lgob.NewEncoder()
 	a.decoder = lgob.NewDecoder()
@@ -257,7 +262,9 @@ func (a *Agent) Run() {
 	for {
 		data, err := a.conn.ReadMsg()
 		if err != nil {
-			log.Debug("read message: %v", err)
+			if err.Error() != "EOF" && strings.ContainsAny(err.Error(), "use of closed network connection") == false {
+				log.Debug("read message: %v", err)
+			}
 			break
 		}
 
