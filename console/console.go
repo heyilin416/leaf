@@ -2,13 +2,14 @@ package console
 
 import (
 	"bufio"
-	"github.com/name5566/leaf/conf"
-	"github.com/name5566/leaf/network"
 	"math"
+	"os"
 	"strconv"
 	"strings"
+
+	"github.com/name5566/leaf/conf"
 	"github.com/name5566/leaf/log"
-	"os"
+	"github.com/name5566/leaf/network"
 )
 
 var server *network.TCPServer
@@ -31,8 +32,9 @@ func run() {
 		reader := bufio.NewReader(os.Stdin)
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			log.Error("console ReadString is error: %v", err)
-			continue
+			// log.Error("console ReadString is error: %v", err)
+			break
+			// continue
 		}
 		line = strings.TrimSuffix(line[:len(line)-1], "\r")
 
