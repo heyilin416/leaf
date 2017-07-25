@@ -1,14 +1,15 @@
 package cluster
 
 import (
-	lgob "github.com/name5566/leaf/network/gob"
+	"encoding/gob"
 	"errors"
 	"fmt"
-	"github.com/name5566/leaf/chanrpc"
-	"github.com/name5566/leaf/log"
 	"sync/atomic"
-	"encoding/gob"
+
+	"github.com/name5566/leaf/chanrpc"
 	"github.com/name5566/leaf/conf"
+	"github.com/name5566/leaf/log"
+	lgob "github.com/name5566/leaf/network/gob"
 )
 
 var (
@@ -29,6 +30,7 @@ type S2S_NotifyServerName struct {
 }
 
 type S2S_HeartBeat struct {
+	ServerName string
 }
 
 type S2S_RequestMsg struct {
@@ -51,8 +53,11 @@ func handleNotifyServerName(args []interface{}) {
 }
 
 func handleHeartBeat(args []interface{}) {
+	msg := args[0].(*S2S_HeartBeat)
 	agent := args[1].(*Agent)
-	atomic.StoreInt32(&agent.heartBeatWaitTimes, 0)
+	if v, ok := agent.heartBeatWaitTimes[msg.ServerName]; ok {
+		atomic.StoreInt32(&v, 0)
+	}
 }
 
 func handleRequestMsg(args []interface{}) {

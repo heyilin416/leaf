@@ -1,10 +1,12 @@
 package network
 
 import (
-	"github.com/name5566/leaf/log"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/name5566/leaf/conf"
+	"github.com/name5566/leaf/log"
 )
 
 type TCPClient struct {
@@ -76,7 +78,7 @@ func (client *TCPClient) dial() net.Conn {
 			return conn
 		}
 
-		log.Release("connect to %v error: %v", client.Addr, err)
+		log.Release("[%s] connect to %v error: %v", conf.ServerName, client.Addr, err)
 		time.Sleep(client.ConnectInterval)
 		continue
 	}

@@ -3,6 +3,7 @@ package chanrpc
 import (
 	"errors"
 	"fmt"
+
 	"github.com/name5566/leaf/log"
 )
 
@@ -120,7 +121,9 @@ func (s *Server) exec(ci *CallInfo) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Recover(r)
-			s.ret(ci, &RetInfo{Err: fmt.Errorf("%v", r)})
+			if err := s.ret(ci, &RetInfo{Err: fmt.Errorf("%v", r)}); err != nil {
+				log.Error("exec error %v", err)
+			}
 		}
 	}()
 
@@ -205,9 +208,10 @@ func (s *Server) Close() {
 	close(s.ChanCall)
 
 	for ci := range s.ChanCall {
-		s.ret(ci, &RetInfo{
+		if err := s.ret(ci, &RetInfo{
 			Err: errors.New("chanrpc server closed"),
-		})
+		}); err != nil {
+		}
 	}
 }
 
